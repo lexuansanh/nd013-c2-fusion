@@ -19,74 +19,106 @@ import sys
 PACKAGE_PARENT = '..'
 SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
-import misc.params as params 
+import misc.params as params
 
 class Filter:
     '''Kalman filter class'''
-    def __init__(self):
-        pass
+    def __init__(self, dim_state=params.dim_state, dt=params.dt, q=params.q):
+        self.dim_state = dim_state
+        self.dt = dt
+        self.q = q
 
     def F(self):
         ############
         # TODO Step 1: implement and return system matrix F
         ############
 
-        return 0
-        
+        return np.matrix([[1, 0, 0, self.dt, 0, 0],
+                          [0, 1, 0, 0, self.dt, 0],
+                          [0, 0, 1, 0, 0, self.dt],
+                          [0, 0, 0, 1, 0, 0],
+                          [0, 0, 0, 0, 1, 0],
+                          [0, 0, 0, 0, 0, 1]])
+
         ############
         # END student code
-        ############ 
+        ############
 
     def Q(self):
         ############
         # TODO Step 1: implement and return process noise covariance Q
         ############
+        q1 = ((self.dt**3)/3) * self.q
+        q2 = ((self.dt**2)/2) * self.q
+        q3 = self.dt * self.q
+        return np.matrix([[q1, 0, 0, q2, 0, 0],
+                          [0, q1, 0, 0, q2, 0],
+                          [0, 0, q1, 0, 0, q2],
+                          [q2, 0, 0, q3, 0, 0],
+                          [0, q2, 0, 0, q3, 0],
+                          [0, 0, q2, 0, 0, q3]])
 
-        return 0
-        
         ############
         # END student code
-        ############ 
+        ############
 
     def predict(self, track):
         ############
         # TODO Step 1: predict state x and estimation error covariance P to next timestep, save x and P in track
         ############
 
-        pass
-        
+        F = self.F()
+        x = F * track.x
+        P = F * track.P * F.transpose() + self.Q()
+        track.set_x(x)
+        track.set_P(P)
+
         ############
         # END student code
-        ############ 
+        ############
 
     def update(self, track, meas):
         ############
         # TODO Step 1: update state x and covariance P with associated measurement, save x and P in track
         ############
-        
+        try:
+            H = meas.sensor.get_H(track.x)
+            gamma = self.gamma(track, meas)
+            S = self.S(track, meas, H)
+            K = track.P * H.transpose()* S.I
+            x = track.x + K * gamma
+            I = np.identity(params.dim_state)
+            P = (I - K * H) * track.P
+            track.set_x(x)
+            track.set_P(P)
+
+        except:
+            print("KF can not update")
+
+
         ############
         # END student code
-        ############ 
+        ############
         track.update_attributes(meas)
-    
+
     def gamma(self, track, meas):
         ############
         # TODO Step 1: calculate and return residual gamma
         ############
 
-        return 0
-        
+        return meas.z - meas.sensor.get_hx(track.x)
+
         ############
         # END student code
-        ############ 
+        ############
 
     def S(self, track, meas, H):
         ############
         # TODO Step 1: calculate and return covariance of residual S
         ############
 
-        return 0
-        
+        return H * track.P * H.transpose() + meas.R
+
         ############
         # END student code
         ############ 
